@@ -4,5 +4,5 @@ type HelloService struct {
 }
 
 func (a *HelloService) GenerateGreet(name string) string {
-	return "Minh " + name
+	return "Hilo " + name
 }
