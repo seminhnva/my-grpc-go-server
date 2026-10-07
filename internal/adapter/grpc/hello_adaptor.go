@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"time"
 
 	"github.com/seminhnva/my-grpc-proto/protogen/go/hello"
@@ -44,5 +45,18 @@ func (a *GrpcAdapter) SayHelloToEveryone(stream grpc.ClientStreamingServer[hello
 		}
 		greet := a.helloService.GenerateGreet(req.Name)
 		res += greet + " "
+	}
+}
+
+func (a *GrpcAdapter) SayHelloContinuous(stream grpc.BidiStreamingServer[hello.HelloRequest, hello.HelloResponse]) error {
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		greet := a.helloService.GenerateGreet(req.Name)
+		if err = stream.Send(&hello.HelloResponse{Greet: greet}); err != nil {
+			log.Fatalln("Error while say HelloContinious", err)
+		}
 	}
 }
