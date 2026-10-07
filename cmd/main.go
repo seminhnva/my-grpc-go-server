@@ -3,9 +3,7 @@ package main
 import (
 	"database/sql"
 	"log"
-	"time"
 
-	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	dbmigration "github.com/seminhnva/my-grpc-go-server/db"
 	mydb "github.com/seminhnva/my-grpc-go-server/internal/adapter/database"
@@ -30,25 +28,10 @@ func main() {
 		log.Fatalln("Can't create database adapter:", err)
 	}
 
-	runDummy(dbAdapter)
-
 	hs := &app.HelloService{}
-	bs := &app.BankSerivce{}
+	bs := app.NewBankService(dbAdapter)
 
 	grpcAdapter := mygrpc.NewGrpcAdapter(hs, bs, 9090)
 	grpcAdapter.Run()
 
-}
-
-func runDummy(da *mydb.DatabaseAdapter) {
-	now := time.Now()
-	uuid, _ := da.Save(
-		&mydb.DummyOrm{
-			UserId:    uuid.New(),
-			UserName:  "Min" + time.Now().Format("15:04:05"),
-			CreatedAt: now,
-			UpdatedAt: now,
-		},
-	)
-	log.Println("res", uuid)
 }

@@ -1,8 +1,25 @@
 package application
 
-type BankSerivce struct{}
+import (
+	"log"
 
-func (*BankSerivce) FindCurrentBalance(account string) float64 {
+	"github.com/seminhnva/my-grpc-go-server/internal/port"
+)
 
-	return 999
+type BankSerivce struct {
+	port port.BankDatabasePort
+}
+
+func NewBankService(db port.BankDatabasePort) *BankSerivce {
+	return &BankSerivce{
+		port: db,
+	}
+}
+
+func (bs *BankSerivce) FindCurrentBalance(accountName string) float64 {
+	accountInfo, err := bs.port.GetCurrentBalance(accountName)
+	if err != nil {
+		log.Println("Cant find accountName", err)
+	}
+	return accountInfo.CurrentBalance
 }
