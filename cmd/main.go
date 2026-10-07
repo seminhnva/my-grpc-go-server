@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"log"
+	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	dbmigration "github.com/seminhnva/my-grpc-go-server/db"
@@ -31,7 +32,8 @@ func main() {
 	hs := &app.HelloService{}
 	bs := app.NewBankService(dbAdapter)
 
+	go bs.StartDummyExchangeRateInjector(3 * time.Second)
 	grpcAdapter := mygrpc.NewGrpcAdapter(hs, bs, 9090)
 	grpcAdapter.Run()
 
-}
+} 

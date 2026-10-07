@@ -12,4 +12,6 @@ type DummyDatabasePort interface {
 
 type BankDatabasePort interface {
 	GetCurrentBalance(accountNumber string) (db.BankAccountOrm, error)
+	InsertDummyExchangeRate()
+	FetchExchangeRate() (db.BankExchangeRateOrm, error)
 }

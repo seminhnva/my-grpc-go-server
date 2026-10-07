@@ -6,4 +6,5 @@ type HelloSerivcePort interface {
 
 type BankServicePort interface {
 	FindCurrentBalance(account string) float64
+	GetLatestExchaneRate() float64
 }
