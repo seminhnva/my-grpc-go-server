@@ -2,10 +2,7 @@ package database
 
 import (
 	"log"
-	"math/rand/v2"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 func (a *DatabaseAdapter) GetCurrentBalance(accountNumber string) (BankAccountOrm, error) {
@@ -17,27 +14,19 @@ func (a *DatabaseAdapter) GetCurrentBalance(accountNumber string) (BankAccountOr
 	return res, nil
 }
 
-func (a *DatabaseAdapter) InsertDummyExchangeRate() {
-	now := time.Now()
+func (a *DatabaseAdapter) InsertDummyExchangeRate(r BankExchangeRateOrm) error {
 
-	rate := BankExchangeRateOrm{
-		ExchangeRateUUID:   uuid.New(),
-		FromCurrency:       "USD",
-		ToCurrency:         "VND",
-		Rate:               20000 + rand.Float64()*200 - 100,
-		ValidFromTimestamp: now,
-		ValidToTimestamp:   now.Add(1 * time.Hour),
-	}
-	if err := a.db.Create(&rate).Error; err != nil {
+	if err := a.db.Create(r).Error; err != nil {
 		log.Println("Insert exchange rate failed:", err)
-		return
+		return err
 	}
 	log.Printf(
 		"Inserted exchange rate %s -> %s = %.10f",
-		rate.FromCurrency,
-		rate.ToCurrency,
-		rate.Rate,
+		r.FromCurrency,
+		r.ToCurrency,
+		r.Rate,
 	)
+	return nil
 }
 func (a *DatabaseAdapter) FetchExchangeRate() (BankExchangeRateOrm, error) {
 	var rate BankExchangeRateOrm
