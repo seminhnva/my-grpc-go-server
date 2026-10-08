@@ -3,6 +3,9 @@ package database
 import (
 	"log"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/seminhnva/my-grpc-go-server/internal/application/domain/bank"
 )
 
 func (a *DatabaseAdapter) GetCurrentBalance(accountNumber string) (BankAccountOrm, error) {
@@ -45,4 +48,28 @@ func (a *DatabaseAdapter) FetchExchangeRate() (BankExchangeRateOrm, error) {
 		return rate, err
 	}
 	return rate, err
+}
+func (a *DatabaseAdapter) CreateTransaction(acc BankAccountOrm, transaction BankTransactionOrm) (uuid.UUID, error) {
+	tx := a.db.Begin()
+	transAmount := transaction.Amount
+	if transaction.TransactionType == bank.TransactionTypeOut {
+		transAmount = -1 * transaction.Amount
+	}
+	newAmount := acc.CurrentBalance + transAmount
+	if err := tx.Create(&transaction).Error; err != nil {
+		tx.Rollback()
+		return uuid.Nil, err
+	}
+
+	if err := tx.Model(&acc).Updates(
+		map[string]interface{}{
+			"current_balance": newAmount,
+			"updated_at":      time.Now(),
+		},
+	).Error; err != nil {
+		tx.Rollback()
+		return uuid.Nil, err
+	}
+	tx.Commit()
+	return transaction.TransactionUUID, nil
 }

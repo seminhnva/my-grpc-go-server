@@ -6,7 +6,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.20.1
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/seminhnva/my-grpc-proto v0.0.8
+	github.com/seminhnva/my-grpc-proto v0.0.11
 	google.golang.org/genproto v0.0.0-20261005182115-fad411399dd8
 	google.golang.org/grpc v1.84.0
 	gorm.io/driver/postgres v1.6.3

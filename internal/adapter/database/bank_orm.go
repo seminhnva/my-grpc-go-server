@@ -21,11 +21,11 @@ func (BankAccountOrm) TableName() string {
 }
 
 type BankTransactionOrm struct {
-	TransacctionUUID     uuid.UUID `gorm:"primaryKey"`
+	TransactionUUID      uuid.UUID `gorm:"primaryKey"`
 	AccountUUID          uuid.UUID `gorm:"type:uuid;not null"`
-	TransactionTimeStamp time.Time
+	TransactionTimestamp time.Time
 	Amount               float64
-	TransactionType      float64
+	TransactionType      string
 	Notes                string
 	CreatedAt            time.Time
 	UpdatedAt            time.Time

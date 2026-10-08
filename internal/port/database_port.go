@@ -14,4 +14,5 @@ type BankDatabasePort interface {
 	GetCurrentBalance(accountNumber string) (db.BankAccountOrm, error)
 	InsertDummyExchangeRate(r db.BankExchangeRateOrm) error
 	FetchExchangeRate() (db.BankExchangeRateOrm, error)
+	CreateTransaction(acc db.BankAccountOrm, transaction db.BankTransactionOrm) (uuid.UUID, error)
 }

@@ -1,11 +1,13 @@
 package application
 
 import (
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/google/uuid"
 	db "github.com/seminhnva/my-grpc-go-server/internal/adapter/database"
+	"github.com/seminhnva/my-grpc-go-server/internal/application/domain/bank"
 	dbank "github.com/seminhnva/my-grpc-go-server/internal/application/domain/bank"
 	"github.com/seminhnva/my-grpc-go-server/internal/port"
 )
@@ -55,4 +57,48 @@ func (bs *BankService) GetLatestExchaneRate() float64 {
 		return 0
 	}
 	return rateInfo.Rate
+}
+
+func (bs *BankService) CreateTransaction(accountNumber string, t dbank.Transaction) (uuid.UUID, error) {
+	accountInfo, err := bs.port.GetCurrentBalance(accountNumber)
+	if err != nil {
+		log.Printf("Can't create transaction for %v : %v\n", accountNumber, err)
+		return uuid.Nil, fmt.Errorf("can't find account number %v : %v", accountNumber, err.Error())
+	}
+
+	if t.TransactionType == bank.TransactionTypeOut && accountInfo.CurrentBalance < t.Amount {
+		return accountInfo.AccountUUID, fmt.Errorf(
+			"insufficient account balance %v for [out] transaction amount %v",
+			accountInfo.CurrentBalance, t.Amount,
+		)
+	}
+	newUuid := uuid.New()
+	now := time.Now()
+	transOrm := db.BankTransactionOrm{
+		TransactionUUID:      newUuid,
+		AccountUUID:          accountInfo.AccountUUID,
+		TransactionTimestamp: time.Now(),
+		Amount:               t.Amount,
+		Notes:                t.Notes,
+		TransactionType:      t.TransactionType,
+		CreatedAt:            now,
+		UpdatedAt:            now,
+	}
+
+	savedUuid, err := bs.port.CreateTransaction(accountInfo, transOrm)
+
+	return savedUuid, err
+}
+
+func (bs *BankService) CalculateTransactionSumary(tcur *dbank.TransactionSummary, t dbank.Transaction) error {
+	switch t.TransactionType {
+	case dbank.TransactionTypeIn:
+		tcur.SumIn += t.Amount
+	case dbank.TransactionTypeOut:
+		tcur.SumOut += t.Amount
+	default:
+		return fmt.Errorf("Unknown transaction typ: %s", t.TransactionType)
+	}
+	tcur.SumTotal = tcur.SumIn - tcur.SumOut
+	return nil
 }
