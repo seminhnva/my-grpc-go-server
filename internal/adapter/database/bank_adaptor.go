@@ -1,11 +1,13 @@
 package database
 
 import (
+	"errors"
 	"log"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/seminhnva/my-grpc-go-server/internal/application/domain/bank"
+	"gorm.io/gorm"
 )
 
 func (a *DatabaseAdapter) GetCurrentBalance(accountNumber string) (BankAccountOrm, error) {
@@ -70,6 +72,74 @@ func (a *DatabaseAdapter) CreateTransaction(acc BankAccountOrm, transaction Bank
 		tx.Rollback()
 		return uuid.Nil, err
 	}
-	tx.Commit()
+
+	if err := tx.Commit().Error; err != nil {
+		return uuid.Nil, err
+	}
 	return transaction.TransactionUUID, nil
+}
+
+func (a *DatabaseAdapter) TransferMultiple(fromAcc BankAccountOrm, toAcc BankAccountOrm, transfer BankTransferOrm) (uuid.UUID, error) {
+	tx := a.db.Begin()
+	if tx.Error != nil {
+		return uuid.Nil, tx.Error
+	}
+	defer tx.Rollback()
+
+	if transfer.Amount <= 0 {
+		return uuid.Nil, errors.New("transfer amount must be positive")
+	}
+
+	if fromAcc.AccountUUID == toAcc.AccountUUID {
+		return uuid.Nil, errors.New("cannot transfer to the same account")
+	}
+	if err := tx.Create(&transfer).Error; err != nil {
+		return uuid.Nil, err
+	}
+
+	result := tx.Model(&BankAccountOrm{}).
+		Where(
+			"account_uuid = ? AND current_balance >= ?",
+			fromAcc.AccountUUID,
+			transfer.Amount,
+		).
+		Updates(map[string]interface{}{
+			"current_balance": gorm.Expr(
+				"current_balance - ?", transfer.Amount,
+			),
+			"updated_at": time.Now(),
+		})
+
+	if result.Error != nil {
+		return uuid.Nil, result.Error
+	}
+
+	if result.RowsAffected != 1 {
+		return uuid.Nil, errors.New(
+			"source account not found or insufficient balance",
+		)
+	}
+
+	result = tx.Model(&BankAccountOrm{}).
+		Where("account_uuid = ?", toAcc.AccountUUID).
+		Updates(map[string]interface{}{
+			"current_balance": gorm.Expr(
+				"current_balance + ?", transfer.Amount,
+			),
+			"updated_at": time.Now(),
+		})
+
+	if result.Error != nil {
+		return uuid.Nil, result.Error
+	}
+
+	if result.RowsAffected != 1 {
+		return uuid.Nil, errors.New("destination account not found")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return uuid.Nil, err
+	}
+	return transfer.TransferUUID, nil
+
 }

@@ -15,4 +15,5 @@ type BankServicePort interface {
 	GetLatestExchaneRate() float64
 	CreateTransaction(accountNumber string, t dbank.Transaction) (uuid.UUID, error)
 	CalculateTransactionSumary(tcur *dbank.TransactionSummary, t dbank.Transaction) error
+	TransferMultiple(transfer dbank.Transfer) (uuid.UUID, error)
 }

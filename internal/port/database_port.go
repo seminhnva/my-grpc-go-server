@@ -15,4 +15,5 @@ type BankDatabasePort interface {
 	InsertDummyExchangeRate(r db.BankExchangeRateOrm) error
 	FetchExchangeRate() (db.BankExchangeRateOrm, error)
 	CreateTransaction(acc db.BankAccountOrm, transaction db.BankTransactionOrm) (uuid.UUID, error)
+	TransferMultiple(fromAcc db.BankAccountOrm, toAcc db.BankAccountOrm, transaction db.BankTransferOrm) (uuid.UUID, error)
 }

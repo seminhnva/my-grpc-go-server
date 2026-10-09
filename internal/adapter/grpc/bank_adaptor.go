@@ -158,3 +158,31 @@ func (a *GrpcAdapter) SummarizeTransactions(stream grpc.ClientStreamingServer[ba
 		}
 	}
 }
+
+func (a *GrpcAdapter) TransferMultiple(stream grpc.BidiStreamingServer[bank.TransferRequest, bank.TransferResponse]) error {
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		tranfer := dbank.Transfer{
+			FromAccountNumber: req.FromAccountNumber,
+			ToAccountNumber:   req.ToAccountNumber,
+			Currency:          req.Currency,
+			Amount:            req.Amount,
+		}
+		_, err = a.bankService.TransferMultiple(tranfer)
+		if err != nil {
+			log.Fatalln("Error while say HelloContinious", err)
+		}
+		if err := stream.Send(&bank.TransferResponse{
+			FromAccountNumber: tranfer.FromAccountNumber,
+			ToAccountNumber:   tranfer.ToAccountNumber,
+			Currency:          tranfer.Currency,
+			Amount:            tranfer.Amount,
+			Status:            bank.TransferStatus_TRANSFER_STATUS_SUCCESS,
+		}); err != nil {
+			log.Fatalln("Error while say HelloContinious", err)
+		}
+	}
+}

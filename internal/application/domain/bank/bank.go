@@ -1,6 +1,8 @@
 package bank
 
-import "time"
+import (
+	"time"
+)
 
 const (
 	TransactionTypeUnknown string = "UNKNOWN"
@@ -27,4 +29,11 @@ type TransactionSummary struct {
 	SumIn         float64
 	SumOut        float64
 	SumTotal      float64
+}
+
+type Transfer struct {
+	FromAccountNumber string
+	ToAccountNumber   string
+	Currency          string
+	Amount            float64
 }

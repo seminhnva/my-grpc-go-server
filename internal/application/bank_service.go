@@ -102,3 +102,31 @@ func (bs *BankService) CalculateTransactionSumary(tcur *dbank.TransactionSummary
 	tcur.SumTotal = tcur.SumIn - tcur.SumOut
 	return nil
 }
+
+func (bs *BankService) TransferMultiple(transfer dbank.Transfer) (uuid.UUID, error) {
+	fromAccInfo, err := bs.port.GetCurrentBalance(transfer.FromAccountNumber)
+	if err != nil {
+		log.Printf("Can't create transfer for %v : %v\n", fromAccInfo.AccountName, err)
+		return uuid.Nil, fmt.Errorf("can't find account number %v : %v", fromAccInfo.AccountName, err.Error())
+	}
+	toAccInfo, err := bs.port.GetCurrentBalance(transfer.ToAccountNumber)
+	if err != nil {
+		log.Printf("Can't create transfer for %v : %v\n", toAccInfo.AccountName, err)
+		return uuid.Nil, fmt.Errorf("can't find account number %v : %v", toAccInfo.AccountName, err.Error())
+	}
+
+	tranfer := db.BankTransferOrm{
+		TransferUUID:    uuid.New(),
+		FromAccountUUID: fromAccInfo.AccountUUID,
+		ToAccountUUID:   toAccInfo.AccountUUID,
+		Currency:        transfer.Currency,
+		Amount:          transfer.Amount,
+	}
+
+	tranferID, err := bs.port.TransferMultiple(fromAccInfo, toAccInfo, tranfer)
+	if err != nil {
+		log.Printf("cant tranfer multiple: %v", err)
+	}
+	return tranferID, nil
+
+}
