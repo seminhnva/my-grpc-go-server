@@ -7,10 +7,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/seminhnva/my-grpc-go-server/internal/application/domain/bank"
-	"gorm.io/gorm"
 )
 
-func (a *DatabaseAdapter) GetCurrentBalance(accountNumber string) (BankAccountOrm, error) {
+func (a *DatabaseAdapter) GetBankAccountByAccountNumber(accountNumber string) (BankAccountOrm, error) {
 	var res BankAccountOrm
 	if err := a.db.First(&res, "account_number = ?", accountNumber).Error; err != nil {
 		log.Println("Cant get data ", err)
@@ -79,67 +78,80 @@ func (a *DatabaseAdapter) CreateTransaction(acc BankAccountOrm, transaction Bank
 	return transaction.TransactionUUID, nil
 }
 
-func (a *DatabaseAdapter) TransferMultiple(fromAcc BankAccountOrm, toAcc BankAccountOrm, transfer BankTransferOrm) (uuid.UUID, error) {
+func (a *DatabaseAdapter) CreateTranfer(transfer BankTransferOrm) (uuid.UUID, error) {
+	if err := a.db.Create(&transfer).Error; err != nil {
+		return uuid.Nil, err
+	}
+	return uuid.Nil, nil
+}
+
+func (a *DatabaseAdapter) CreateTransferTransactionPair(fromAcc BankAccountOrm, toAcc BankAccountOrm, fromTransaction BankTransactionOrm, toTransaction BankTransactionOrm) (bool, error) {
 	tx := a.db.Begin()
 	if tx.Error != nil {
-		return uuid.Nil, tx.Error
+		return false, tx.Error
 	}
 	defer tx.Rollback()
 
-	if transfer.Amount <= 0 {
-		return uuid.Nil, errors.New("transfer amount must be positive")
-	}
-
 	if fromAcc.AccountUUID == toAcc.AccountUUID {
-		return uuid.Nil, errors.New("cannot transfer to the same account")
-	}
-	if err := tx.Create(&transfer).Error; err != nil {
-		return uuid.Nil, err
+		return false, errors.New("cannot transfer to the same account")
 	}
 
+	if err := tx.Create(&fromTransaction).Error; err != nil {
+		return false, err
+	}
+	if err := tx.Create(&toTransaction).Error; err != nil {
+		return false, err
+	}
+
+	// recalculate fromAccount
+	fromAccountBalanceNew := fromAcc.CurrentBalance - fromTransaction.Amount
 	result := tx.Model(&BankAccountOrm{}).
 		Where(
 			"account_uuid = ? AND current_balance >= ?",
 			fromAcc.AccountUUID,
-			transfer.Amount,
+			fromTransaction.Amount,
 		).
 		Updates(map[string]interface{}{
-			"current_balance": gorm.Expr(
-				"current_balance - ?", transfer.Amount,
-			),
-			"updated_at": time.Now(),
+			"current_balance": fromAccountBalanceNew,
+			"updated_at":      time.Now(),
 		})
 
 	if result.Error != nil {
-		return uuid.Nil, result.Error
+		return false, result.Error
 	}
 
 	if result.RowsAffected != 1 {
-		return uuid.Nil, errors.New(
+		return false, errors.New(
 			"source account not found or insufficient balance",
 		)
 	}
-
+	// recalculate toAccounts
+	toAccountBalanceNew := toAcc.CurrentBalance + fromTransaction.Amount
 	result = tx.Model(&BankAccountOrm{}).
-		Where("account_uuid = ?", toAcc.AccountUUID).
+		Where(
+			"account_uuid = ? AND current_balance >= ?",
+			toAcc.AccountUUID,
+			toTransaction.Amount,
+		).
 		Updates(map[string]interface{}{
-			"current_balance": gorm.Expr(
-				"current_balance + ?", transfer.Amount,
-			),
-			"updated_at": time.Now(),
+			"current_balance": toAccountBalanceNew,
+			"updated_at":      time.Now(),
 		})
 
 	if result.Error != nil {
-		return uuid.Nil, result.Error
+		return false, result.Error
 	}
-
-	if result.RowsAffected != 1 {
-		return uuid.Nil, errors.New("destination account not found")
+	tx.Commit()
+	return true, nil
+}
+func (a *DatabaseAdapter) UpdateTransferStatus(transfer BankTransferOrm, status bool) error {
+	if err := a.db.Model(&transfer).Updates(
+		map[string]interface{}{
+			"transfer_success": status,
+			"updated_at":       time.Now(),
+		},
+	).Error; err != nil {
+		return err
 	}
-
-	if err := tx.Commit().Error; err != nil {
-		return uuid.Nil, err
-	}
-	return transfer.TransferUUID, nil
-
+	return nil
 }

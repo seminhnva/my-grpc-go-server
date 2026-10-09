@@ -23,7 +23,7 @@ func NewBankService(db port.BankDatabasePort) *BankService {
 }
 
 func (bs *BankService) FindCurrentBalance(accountName string) float64 {
-	accountInfo, err := bs.port.GetCurrentBalance(accountName)
+	accountInfo, err := bs.port.GetBankAccountByAccountNumber(accountName)
 	if err != nil {
 		log.Println("Cant find accountName", err)
 	}
@@ -60,7 +60,7 @@ func (bs *BankService) GetLatestExchaneRate() float64 {
 }
 
 func (bs *BankService) CreateTransaction(accountNumber string, t dbank.Transaction) (uuid.UUID, error) {
-	accountInfo, err := bs.port.GetCurrentBalance(accountNumber)
+	accountInfo, err := bs.port.GetBankAccountByAccountNumber(accountNumber)
 	if err != nil {
 		log.Printf("Can't create transaction for %v : %v\n", accountNumber, err)
 		return uuid.Nil, fmt.Errorf("can't find account number %v : %v", accountNumber, err.Error())
@@ -103,30 +103,60 @@ func (bs *BankService) CalculateTransactionSumary(tcur *dbank.TransactionSummary
 	return nil
 }
 
-func (bs *BankService) TransferMultiple(transfer dbank.Transfer) (uuid.UUID, error) {
-	fromAccInfo, err := bs.port.GetCurrentBalance(transfer.FromAccountNumber)
+func (bs *BankService) Transfer(tt dbank.TransferTransaction) (uuid.UUID, bool, error) {
+	now := time.Now()
+
+	fromAccInfo, err := bs.port.GetBankAccountByAccountNumber(tt.FromAccountNumber)
 	if err != nil {
-		log.Printf("Can't create transfer for %v : %v\n", fromAccInfo.AccountName, err)
-		return uuid.Nil, fmt.Errorf("can't find account number %v : %v", fromAccInfo.AccountName, err.Error())
+		return uuid.Nil, false, fmt.Errorf("can't find account number %v : %v", fromAccInfo.AccountName, err.Error())
 	}
-	toAccInfo, err := bs.port.GetCurrentBalance(transfer.ToAccountNumber)
+	toAccInfo, err := bs.port.GetBankAccountByAccountNumber(tt.ToAccountNumber)
 	if err != nil {
-		log.Printf("Can't create transfer for %v : %v\n", toAccInfo.AccountName, err)
-		return uuid.Nil, fmt.Errorf("can't find account number %v : %v", toAccInfo.AccountName, err.Error())
+		return uuid.Nil, false, fmt.Errorf("can't find account number %v : %v", toAccInfo.AccountName, err.Error())
 	}
 
-	tranfer := db.BankTransferOrm{
-		TransferUUID:    uuid.New(),
-		FromAccountUUID: fromAccInfo.AccountUUID,
-		ToAccountUUID:   toAccInfo.AccountUUID,
-		Currency:        transfer.Currency,
-		Amount:          transfer.Amount,
+	fromTransferOrm := db.BankTransactionOrm{
+		TransactionUUID:      uuid.New(),
+		TransactionTimestamp: now,
+		AccountUUID:          fromAccInfo.AccountUUID,
+		TransactionType:      dbank.TransactionTypeIn,
+		Amount:               tt.Amount,
+		Notes:                "Transfer out to " + tt.ToAccountNumber,
+		CreatedAt:            now,
+		UpdatedAt:            now,
+	}
+	toTransferOrm := db.BankTransactionOrm{
+		TransactionUUID:      uuid.New(),
+		TransactionTimestamp: now,
+		AccountUUID:          toAccInfo.AccountUUID,
+		TransactionType:      dbank.TransactionTypeIn,
+		Amount:               tt.Amount,
+		Notes:                "Transfer in from " + tt.FromAccountNumber,
+		CreatedAt:            now,
+		UpdatedAt:            now,
 	}
 
-	tranferID, err := bs.port.TransferMultiple(fromAccInfo, toAccInfo, tranfer)
-	if err != nil {
-		log.Printf("cant tranfer multiple: %v", err)
+	newTransferUuid := uuid.New()
+	transferOrm := db.BankTransferOrm{
+		TransferUUID:      newTransferUuid,
+		FromAccountUUID:   fromAccInfo.AccountUUID,
+		ToAccountUUID:     toAccInfo.AccountUUID,
+		Currency:          tt.Currency,
+		Amount:            tt.Amount,
+		TransferTimestamp: now,
+		TransferSuccess:   false,
+		CreatedAt:         now,
+		UpdatedAt:         now,
 	}
-	return tranferID, nil
+	if _, err := bs.port.CreateTranfer(transferOrm); err != nil {
+		log.Printf("Cant create tranfer from %v to %v", tt.FromAccountNumber, tt.ToAccountNumber)
+		return uuid.Nil, false, err
+	}
+	if transferPairSuccess, err := bs.port.CreateTransferTransactionPair(fromAccInfo, toAccInfo, fromTransferOrm, toTransferOrm); transferPairSuccess {
+		bs.port.UpdateTransferStatus(transferOrm, true)
+		return newTransferUuid, true, nil
+	} else {
+		return newTransferUuid, false, err
+	}
 
 }

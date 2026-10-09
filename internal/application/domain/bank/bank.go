@@ -31,7 +31,7 @@ type TransactionSummary struct {
 	SumTotal      float64
 }
 
-type Transfer struct {
+type TransferTransaction struct {
 	FromAccountNumber string
 	ToAccountNumber   string
 	Currency          string

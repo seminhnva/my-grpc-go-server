@@ -159,30 +159,65 @@ func (a *GrpcAdapter) SummarizeTransactions(stream grpc.ClientStreamingServer[ba
 	}
 }
 
+func currentDatetime() *datetime.DateTime {
+	now := time.Now()
+
+	return &datetime.DateTime{
+		Year:       int32(now.Year()),
+		Month:      int32(now.Month()),
+		Day:        int32(now.Day()),
+		Hours:      int32(now.Hour()),
+		Minutes:    int32(now.Minute()),
+		Seconds:    int32(now.Second()),
+		Nanos:      int32(now.Nanosecond()),
+		TimeOffset: &datetime.DateTime_UtcOffset{},
+	}
+}
+
 func (a *GrpcAdapter) TransferMultiple(stream grpc.BidiStreamingServer[bank.TransferRequest, bank.TransferResponse]) error {
+	context := stream.Context()
 	for {
-		req, err := stream.Recv()
-		if err == io.EOF {
-			return nil
+		select {
+		case <-context.Done():
+			log.Println("Client cancel stream")
+		default:
+			req, err := stream.Recv()
+			if err == io.EOF {
+				return nil
+			}
+			if err != nil {
+				log.Fatalf("Error while reading from client %v:", err)
+			}
+			tt := dbank.TransferTransaction{
+				FromAccountNumber: req.FromAccountNumber,
+				ToAccountNumber:   req.ToAccountNumber,
+				Currency:          req.Currency,
+				Amount:            req.Amount,
+			}
+
+			_, transferSuccess, err := a.bankService.Transfer(tt)
+			if err != nil {
+				return err
+			}
+
+			res := bank.TransferResponse{
+				FromAccountNumber: req.FromAccountNumber,
+				ToAccountNumber:   req.ToAccountNumber,
+				Currency:          req.Currency,
+				Amount:            req.Amount,
+				Timestamp:         currentDatetime(),
+			}
+			if transferSuccess {
+				res.Status = bank.TransferStatus_TRANSFER_STATUS_SUCCESS
+			} else {
+				res.Status = bank.TransferStatus_TRANSFER_STATUS_FAILED
+			}
+			err = stream.Send(&res)
+
+			if err != nil {
+				log.Fatalln("Error while sending response to client :", err)
+			}
 		}
-		tranfer := dbank.Transfer{
-			FromAccountNumber: req.FromAccountNumber,
-			ToAccountNumber:   req.ToAccountNumber,
-			Currency:          req.Currency,
-			Amount:            req.Amount,
-		}
-		_, err = a.bankService.TransferMultiple(tranfer)
-		if err != nil {
-			log.Fatalln("Error while say HelloContinious", err)
-		}
-		if err := stream.Send(&bank.TransferResponse{
-			FromAccountNumber: tranfer.FromAccountNumber,
-			ToAccountNumber:   tranfer.ToAccountNumber,
-			Currency:          tranfer.Currency,
-			Amount:            tranfer.Amount,
-			Status:            bank.TransferStatus_TRANSFER_STATUS_SUCCESS,
-		}); err != nil {
-			log.Fatalln("Error while say HelloContinious", err)
-		}
+
 	}
 }
