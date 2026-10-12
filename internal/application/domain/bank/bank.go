@@ -1,6 +1,7 @@
 package bank
 
 import (
+	"errors"
 	"time"
 )
 
@@ -37,3 +38,8 @@ type TransferTransaction struct {
 	Currency          string
 	Amount            float64
 }
+
+var ErrTransferSourceAccountNotFound = errors.New("source account not found")
+var ErrTransferDestinationAccountNotFound = errors.New("destination account not found")
+var ErrTransferRecordFailed = errors.New("cant create transfer record")
+var ErrTransferTransactionFair = errors.New("cant create transfer transaction pair, " + "possibly insufficient balance on source account")
