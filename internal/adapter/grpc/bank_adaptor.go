@@ -19,7 +19,10 @@ import (
 )
 
 func (a *GrpcAdapter) GetCurrentBalance(ctx context.Context, req *bank.CurrentBalanceRequest) (*bank.CurrrentBalanceResponse, error) {
-	currentBalance := a.bankService.FindCurrentBalance(req.AccountNumber)
+	currentBalance, err := a.bankService.FindCurrentBalance(req.AccountNumber)
+	if err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "account %v not found", req.AccountNumber)
+	}
 	return &bank.CurrrentBalanceResponse{
 		CurrentBalance: currentBalance,
 	}, nil
@@ -31,7 +34,21 @@ func (a *GrpcAdapter) FetchExchangeRates(req *bank.ExchangeRateRequest, stream g
 	for {
 		select {
 		case <-ticker.C:
-			rate := a.bankService.GetLatestExchaneRate()
+			rate, err := a.bankService.GetLatestExchaneRate()
+
+			if err != nil {
+				s := status.New(codes.InvalidArgument, "Currency not valid. Please use valid currency for both from and to")
+				s, _ = s.WithDetails(&errdetails.ErrorInfo{
+					Domain: "my-bank.com",
+					Reason: "INVALID_CURRENCY",
+					Metadata: map[string]string{
+						"from_currency": req.FromCurrency,
+						"to_currency":   req.ToCurrency,
+					},
+				})
+
+				return s.Err()
+			}
 			if err := stream.Send(&bank.ExchangeRateResponse{
 				Rate: rate,
 			}); err != nil {

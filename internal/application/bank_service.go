@@ -22,12 +22,13 @@ func NewBankService(db port.BankDatabasePort) *BankService {
 	}
 }
 
-func (bs *BankService) FindCurrentBalance(accountName string) float64 {
+func (bs *BankService) FindCurrentBalance(accountName string) (float64, error) {
 	accountInfo, err := bs.port.GetBankAccountByAccountNumber(accountName)
 	if err != nil {
 		log.Println("Cant find accountName", err)
+		return 0, err
 	}
-	return accountInfo.CurrentBalance
+	return accountInfo.CurrentBalance, nil
 }
 func (bs *BankService) CreateDummyExchangeRate(
 	r dbank.ExchangeRate,
@@ -50,13 +51,13 @@ func (bs *BankService) CreateDummyExchangeRate(
 	}
 }
 
-func (bs *BankService) GetLatestExchaneRate() float64 {
+func (bs *BankService) GetLatestExchaneRate() (float64, error) {
 	rateInfo, err := bs.port.FetchExchangeRate()
 	if err != nil {
 		log.Println("Cant get exchange rate", err)
-		return 0
+		return 0, err
 	}
-	return rateInfo.Rate
+	return rateInfo.Rate, nil
 }
 
 func (bs *BankService) CreateTransaction(accountNumber string, t dbank.Transaction) (uuid.UUID, error) {
