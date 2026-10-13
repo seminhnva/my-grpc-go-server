@@ -2,6 +2,8 @@ package dbmigration
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
 	"log"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -10,24 +12,21 @@ import (
 	postgres "github.com/golang-migrate/migrate/v4/database/postgres"
 )
 
-func Migrate(conn *sql.DB) {
+func Migrate(conn *sql.DB) error {
 	log.Println("Database migration start ")
-	driver, _ := postgres.WithInstance(conn, &postgres.Config{})
+	driver, err := postgres.WithInstance(conn, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("create postgres migration driver: %w", err)
+	}
 	m, err := migrate.NewWithDatabaseInstance("file://db/migrations", "postgres", driver)
 	if err != nil {
-		log.Println("DB migration failed:", err)
-		return
-
-	}
-	if err := m.Down(); err != nil {
-		log.Println("DB migration (down) failed", err)
-		return
-
+		return fmt.Errorf("initialize database migrations: %w", err)
 	}
 	if err := m.Up(); err != nil {
-		log.Println("DB migration (up) failed", err)
-		return
-
+		if !errors.Is(err, migrate.ErrNoChange) {
+			return fmt.Errorf("apply database migrations: %w", err)
+		}
 	}
 	log.Println("DB migration end")
+	return nil
 }

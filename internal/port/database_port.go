@@ -13,7 +13,7 @@ type DummyDatabasePort interface {
 type BankDatabasePort interface {
 	GetBankAccountByAccountNumber(accountNumber string) (db.BankAccountOrm, error)
 	InsertDummyExchangeRate(r db.BankExchangeRateOrm) error
-	FetchExchangeRate() (db.BankExchangeRateOrm, error)
+	FetchExchangeRate(fromCurrency, toCurrency string) (db.BankExchangeRateOrm, error)
 	CreateTransaction(acc db.BankAccountOrm, transaction db.BankTransactionOrm) (uuid.UUID, error)
 	CreateTranfer(transfer db.BankTransferOrm) (uuid.UUID, error)
 	CreateTransferTransactionPair(fromAcc db.BankAccountOrm, toAcc db.BankAccountOrm, fromTransaction db.BankTransactionOrm, toTransaction db.BankTransactionOrm) (bool, error)

@@ -32,7 +32,7 @@ func (bs *BankService) FindCurrentBalance(accountName string) (float64, error) {
 }
 func (bs *BankService) CreateDummyExchangeRate(
 	r dbank.ExchangeRate,
-) {
+) error {
 	now := time.Now()
 
 	exchangeRateOrm := db.BankExchangeRateOrm{
@@ -47,12 +47,13 @@ func (bs *BankService) CreateDummyExchangeRate(
 	}
 
 	if err := bs.port.InsertDummyExchangeRate(exchangeRateOrm); err != nil {
-		log.Println("Insert exchange rate failed:", err)
+		return fmt.Errorf("insert exchange rate %s -> %s: %w", r.FromCurrency, r.ToCurrency, err)
 	}
+	return nil
 }
 
-func (bs *BankService) GetLatestExchaneRate() (float64, error) {
-	rateInfo, err := bs.port.FetchExchangeRate()
+func (bs *BankService) GetLatestExchaneRate(fromCurrency, toCurrency string) (float64, error) {
+	rateInfo, err := bs.port.FetchExchangeRate(fromCurrency, toCurrency)
 	if err != nil {
 		log.Println("Cant get exchange rate", err)
 		return 0, err

@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/seminhnva/my-grpc-go-server/internal/application/domain/bank"
+	"gorm.io/gorm"
 )
 
 func (a *DatabaseAdapter) GetBankAccountByAccountNumber(accountNumber string) (BankAccountOrm, error) {
@@ -19,9 +20,7 @@ func (a *DatabaseAdapter) GetBankAccountByAccountNumber(accountNumber string) (B
 }
 
 func (a *DatabaseAdapter) InsertDummyExchangeRate(r BankExchangeRateOrm) error {
-
-	if err := a.db.Create(r).Error; err != nil {
-		log.Println("Insert exchange rate failed:", err)
+	if err := a.db.Create(&r).Error; err != nil {
 		return err
 	}
 	log.Printf(
@@ -32,23 +31,25 @@ func (a *DatabaseAdapter) InsertDummyExchangeRate(r BankExchangeRateOrm) error {
 	)
 	return nil
 }
-func (a *DatabaseAdapter) FetchExchangeRate() (BankExchangeRateOrm, error) {
+func (a *DatabaseAdapter) FetchExchangeRate(fromCurrency, toCurrency string) (BankExchangeRateOrm, error) {
 	var rate BankExchangeRateOrm
 	err := a.db.
 		Where(
 			"from_currency = ? AND to_currency = ? AND valid_from_timestamp <= ? AND valid_to_timestamp > ?",
-			"USD",
-			"VND",
+			fromCurrency,
+			toCurrency,
 			time.Now(),
 			time.Now(),
 		).
 		Order("valid_from_timestamp DESC").
 		First(&rate).Error
 	if err != nil {
-		log.Println("Fail to fetch rate")
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return rate, bank.ErrExchangeRateNotFound
+		}
 		return rate, err
 	}
-	return rate, err
+	return rate, nil
 }
 func (a *DatabaseAdapter) CreateTransaction(acc BankAccountOrm, transaction BankTransactionOrm) (uuid.UUID, error) {
 	tx := a.db.Begin()

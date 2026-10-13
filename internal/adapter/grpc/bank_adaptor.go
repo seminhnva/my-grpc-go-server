@@ -35,20 +35,18 @@ func (a *GrpcAdapter) FetchExchangeRates(req *bank.ExchangeRateRequest, stream g
 	for {
 		select {
 		case <-ticker.C:
-			rate, err := a.bankService.GetLatestExchaneRate()
+			rate, err := a.bankService.GetLatestExchaneRate(req.FromCurrency, req.ToCurrency)
 
 			if err != nil {
-				s := status.New(codes.InvalidArgument, "Currency not valid. Please use valid currency for both from and to")
-				s, _ = s.WithDetails(&errdetails.ErrorInfo{
-					Domain: "my-bank.com",
-					Reason: "INVALID_CURRENCY",
-					Metadata: map[string]string{
-						"from_currency": req.FromCurrency,
-						"to_currency":   req.ToCurrency,
-					},
-				})
-
-				return s.Err()
+				if errors.Is(err, dbank.ErrExchangeRateNotFound) {
+					return status.Errorf(
+						codes.NotFound,
+						"exchange rate record not found for %s -> %s",
+						req.FromCurrency,
+						req.ToCurrency,
+					)
+				}
+				return status.Errorf(codes.Internal, "failed to fetch exchange rate: %v", err)
 			}
 			if err := stream.Send(&bank.ExchangeRateResponse{
 				Rate: rate,

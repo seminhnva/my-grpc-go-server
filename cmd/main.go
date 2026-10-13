@@ -24,7 +24,9 @@ func main() {
 		log.Fatalln("Can't connect database :", err)
 	}
 
-	dbmigration.Migrate(sqlDB)
+	if err := dbmigration.Migrate(sqlDB); err != nil {
+		log.Fatalln("Database migration failed:", err)
+	}
 
 	dbAdapter, err := mydb.NewDatabaseAdapter(sqlDB)
 	if err != nil {
@@ -34,28 +36,29 @@ func main() {
 	hs := &app.HelloService{}
 	bs := app.NewBankService(dbAdapter)
 
-	// go generateExchangeRates(bs, "USD", "VND", 5*time.Second)
+	if err := createDummyExchangeRate(bs, "USD", "VND"); err != nil {
+		log.Fatalln("Failed to seed exchange rate:", err)
+	}
+	go generateExchangeRates(bs, "USD", "VND", 5*time.Second)
 	grpcAdapter := mygrpc.NewGrpcAdapter(hs, bs, 9090)
 	grpcAdapter.Run()
+}
 
+func createDummyExchangeRate(bs *app.BankService, fromCurrency, toCurrency string) error {
+	return bs.CreateDummyExchangeRate(bank.ExchangeRate{
+		FromCurrency: fromCurrency,
+		ToCurrency:   toCurrency,
+		Rate:         2000 + float64(rand.IntN(300)),
+	})
 }
 
 func generateExchangeRates(bs *app.BankService, fromCurrency, toCurrency string, duration time.Duration) {
 	ticker := time.NewTicker(duration)
+	defer ticker.Stop()
 
 	for range ticker.C {
-		now := time.Now()
-		validFrom := now.Truncate(time.Second).Add(3 * time.Second)
-		validTo := validFrom.Add(duration).Add(-1 * time.Millisecond)
-
-		dummyRate := bank.ExchangeRate{
-			FromCurrency:       fromCurrency,
-			ToCurrency:         toCurrency,
-			ValidFromTimeStamp: validFrom,
-			ValidToTimeStamp:   validTo,
-			Rate:               2000 + float64(rand.IntN(300)),
+		if err := createDummyExchangeRate(bs, fromCurrency, toCurrency); err != nil {
+			log.Println("Failed to generate exchange rate:", err)
 		}
-
-		bs.CreateDummyExchangeRate(dummyRate)
 	}
 }
