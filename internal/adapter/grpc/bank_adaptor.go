@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (a *GrpcAdapter) GetCurrentBalance(ctx context.Context, req *bank.CurrentBalanceRequest) (*bank.CurrrentBalanceResponse, error) {
@@ -49,7 +50,10 @@ func (a *GrpcAdapter) FetchExchangeRates(req *bank.ExchangeRateRequest, stream g
 				return status.Errorf(codes.Internal, "failed to fetch exchange rate: %v", err)
 			}
 			if err := stream.Send(&bank.ExchangeRateResponse{
-				Rate: rate,
+				FromCurrency:         rate.FromCurrency,
+				ToCurrency:           rate.ToCurrency,
+				Rate:                 rate.Rate,
+				TransactionTimestamp: timestamppb.New(rate.ValidFromTimeStamp),
 			}); err != nil {
 				return err
 			}

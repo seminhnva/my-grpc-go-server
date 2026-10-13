@@ -104,8 +104,6 @@ func (a *DatabaseAdapter) CreateTransferTransactionPair(fromAcc BankAccountOrm, 
 		return false, err
 	}
 
-	// recalculate fromAccount
-	fromAccountBalanceNew := fromAcc.CurrentBalance - fromTransaction.Amount
 	result := tx.Model(&BankAccountOrm{}).
 		Where(
 			"account_uuid = ? AND current_balance >= ?",
@@ -113,7 +111,7 @@ func (a *DatabaseAdapter) CreateTransferTransactionPair(fromAcc BankAccountOrm, 
 			fromTransaction.Amount,
 		).
 		Updates(map[string]interface{}{
-			"current_balance": fromAccountBalanceNew,
+			"current_balance": gorm.Expr("current_balance - ?", fromTransaction.Amount),
 			"updated_at":      time.Now(),
 		})
 
@@ -122,27 +120,26 @@ func (a *DatabaseAdapter) CreateTransferTransactionPair(fromAcc BankAccountOrm, 
 	}
 
 	if result.RowsAffected != 1 {
-		return false, errors.New(
-			"source account not found or insufficient balance",
-		)
+		return false, bank.ErrTransferTransactionFair
 	}
-	// recalculate toAccounts
-	toAccountBalanceNew := toAcc.CurrentBalance + fromTransaction.Amount
+
 	result = tx.Model(&BankAccountOrm{}).
-		Where(
-			"account_uuid = ? AND current_balance >= ?",
-			toAcc.AccountUUID,
-			toTransaction.Amount,
-		).
+		Where("account_uuid = ?", toAcc.AccountUUID).
 		Updates(map[string]interface{}{
-			"current_balance": toAccountBalanceNew,
+			"current_balance": gorm.Expr("current_balance + ?", toTransaction.Amount),
 			"updated_at":      time.Now(),
 		})
 
 	if result.Error != nil {
 		return false, result.Error
 	}
-	tx.Commit()
+	if result.RowsAffected != 1 {
+		return false, bank.ErrTransferDestinationAccountNotFound
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return false, err
+	}
 	return true, nil
 }
 func (a *DatabaseAdapter) UpdateTransferStatus(transfer BankTransferOrm, status bool) error {

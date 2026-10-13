@@ -52,13 +52,19 @@ func (bs *BankService) CreateDummyExchangeRate(
 	return nil
 }
 
-func (bs *BankService) GetLatestExchaneRate(fromCurrency, toCurrency string) (float64, error) {
+func (bs *BankService) GetLatestExchaneRate(fromCurrency, toCurrency string) (dbank.ExchangeRate, error) {
 	rateInfo, err := bs.port.FetchExchangeRate(fromCurrency, toCurrency)
 	if err != nil {
 		log.Println("Cant get exchange rate", err)
-		return 0, err
+		return dbank.ExchangeRate{}, err
 	}
-	return rateInfo.Rate, nil
+	return dbank.ExchangeRate{
+		FromCurrency:       rateInfo.FromCurrency,
+		ToCurrency:         rateInfo.ToCurrency,
+		Rate:               rateInfo.Rate,
+		ValidFromTimeStamp: rateInfo.ValidFromTimestamp,
+		ValidToTimeStamp:   rateInfo.ValidToTimestamp,
+	}, nil
 }
 
 func (bs *BankService) CreateTransaction(accountNumber string, t dbank.Transaction) (uuid.UUID, error) {
@@ -126,7 +132,7 @@ func (bs *BankService) Transfer(tt dbank.TransferTransaction) (uuid.UUID, bool, 
 		TransactionUUID:      uuid.New(),
 		TransactionTimestamp: now,
 		AccountUUID:          fromAccInfo.AccountUUID,
-		TransactionType:      dbank.TransactionTypeIn,
+		TransactionType:      dbank.TransactionTypeOut,
 		Amount:               tt.Amount,
 		Notes:                "Transfer out to " + tt.ToAccountNumber,
 		CreatedAt:            now,
@@ -159,11 +165,21 @@ func (bs *BankService) Transfer(tt dbank.TransferTransaction) (uuid.UUID, bool, 
 		log.Printf("Cant create tranfer from %v to %v", tt.FromAccountNumber, tt.ToAccountNumber)
 		return uuid.Nil, false, dbank.ErrTransferRecordFailed
 	}
-	if transferPairSuccess, _ := bs.port.CreateTransferTransactionPair(fromAccInfo, toAccInfo, fromTransferOrm, toTransferOrm); transferPairSuccess {
-		bs.port.UpdateTransferStatus(transferOrm, true)
-		return newTransferUuid, true, nil
-	} else {
+	transferPairSuccess, err := bs.port.CreateTransferTransactionPair(
+		fromAccInfo,
+		toAccInfo,
+		fromTransferOrm,
+		toTransferOrm,
+	)
+	if err != nil {
+		return uuid.Nil, false, err
+	}
+	if !transferPairSuccess {
 		return newTransferUuid, false, dbank.ErrTransferTransactionFair
 	}
 
+	if err := bs.port.UpdateTransferStatus(transferOrm, true); err != nil {
+		return newTransferUuid, false, fmt.Errorf("update transfer status: %w", err)
+	}
+	return newTransferUuid, true, nil
 }
