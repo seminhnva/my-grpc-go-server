@@ -17,3 +17,7 @@ type BankServicePort interface {
 	CalculateTransactionSumary(tcur *dbank.TransactionSummary, t dbank.Transaction) error
 	Transfer(tt dbank.TransferTransaction) (uuid.UUID, bool, error)
 }
+
+type ResiliencyServicePort interface {
+	GenerateResiliency(minDelaySecond int32, maxDelaySecond int32, statusCode []uint32) (string, uint32)
+}

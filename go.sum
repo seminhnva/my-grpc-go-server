@@ -86,6 +86,8 @@ github.com/seminhnva/my-grpc-proto v0.0.12 h1:xu+h1aXminzL4GyfQgGtBaOiIe/5p/dSAO
 github.com/seminhnva/my-grpc-proto v0.0.12/go.mod h1:pxXg0RGeWgaBatP9+wIIHUqFV9qdmpEDwRbVIuWr8oU=
 github.com/seminhnva/my-grpc-proto v0.0.13 h1:r3hX1oIQXFhiiKsHnOTYlPPbM7krrQbt99FrAUfteAA=
 github.com/seminhnva/my-grpc-proto v0.0.13/go.mod h1:pxXg0RGeWgaBatP9+wIIHUqFV9qdmpEDwRbVIuWr8oU=
+github.com/seminhnva/my-grpc-proto v0.0.14 h1:T18gjyPhv2aUn2VZ12rWNtNti/1d63bXfbKifiomr/4=
+github.com/seminhnva/my-grpc-proto v0.0.14/go.mod h1:pxXg0RGeWgaBatP9+wIIHUqFV9qdmpEDwRbVIuWr8oU=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=

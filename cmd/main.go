@@ -35,12 +35,13 @@ func main() {
 
 	hs := &app.HelloService{}
 	bs := app.NewBankService(dbAdapter)
+	rs := &app.ResiliencyService{}
 
 	if err := createDummyExchangeRate(bs, "USD", "VND"); err != nil {
 		log.Fatalln("Failed to seed exchange rate:", err)
 	}
 	go generateExchangeRates(bs, "USD", "VND", 5*time.Second)
-	grpcAdapter := mygrpc.NewGrpcAdapter(hs, bs, 9090)
+	grpcAdapter := mygrpc.NewGrpcAdapter(hs, bs, rs, 9090)
 	grpcAdapter.Run()
 }
 
