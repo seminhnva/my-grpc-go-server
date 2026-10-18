@@ -54,14 +54,18 @@ func (a *GrpcAdapter) ServerStreamResiliency(req *resiliency.ResiliencyRequest,
 	stream grpc.ServerStreamingServer[resiliency.ResiliencyResponse]) error {
 	log.Println("ServerStreamResiliency called")
 
-	context := stream.Context()
+	ctx := stream.Context()
 	for {
 		select {
-		case <-context.Done():
-			log.Println("Client cancelled request")
+		case <-ctx.Done():
+			log.Printf("ServerStreamResiliency stopped: %v", ctx.Err())
 			return nil
 		default:
 			str, sts := a.resililencyService.GenerateResiliency(req.MinDelaySecond, req.MaxDelaySecond, req.StatusCodes)
+			if ctx.Err() != nil {
+				log.Printf("ServerStreamResiliency stopped: %v", ctx.Err())
+				return nil
+			}
 			if errStatus := generateErrStatus(sts); errStatus != nil {
 				return errStatus
 			}
@@ -69,7 +73,11 @@ func (a *GrpcAdapter) ServerStreamResiliency(req *resiliency.ResiliencyRequest,
 				DummyString: str,
 			})
 			if err != nil {
-				log.Fatalln("Error while seding to client:", err)
+				if ctx.Err() != nil {
+					log.Printf("ServerStreamResiliency stopped: %v", ctx.Err())
+					return nil
+				}
+				return err
 			}
 		}
 

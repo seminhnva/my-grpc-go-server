@@ -15,7 +15,7 @@ func (f *ResiliencyService) GenerateResiliency(minDelaySecond int32, maxDelaySer
 	time.Sleep(delaySecond)
 
 	idx := rand.Intn(len(statusCodes))
-	str := fmt.Sprintf("The time now is %v, execution delay for %v seconds", time.Now().Format("15:04:05.000"), delay)
+	str := fmt.Sprintf("The time now is %v, execution delay for %v seconds, statusCode: %v", time.Now().Format("15:04:05.000"), delay, statusCodes[idx])
 
 	return str, statusCodes[idx]
 }
