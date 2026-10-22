@@ -23,12 +23,12 @@ func (a *DatabaseAdapter) InsertDummyExchangeRate(r BankExchangeRateOrm) error {
 	if err := a.db.Create(&r).Error; err != nil {
 		return err
 	}
-	log.Printf(
-		"Inserted exchange rate %s -> %s = %.10f",
-		r.FromCurrency,
-		r.ToCurrency,
-		r.Rate,
-	)
+	// log.Printf(
+	// 	"Inserted exchange rate %s -> %s = %.10f",
+	// 	r.FromCurrency,
+	// 	r.ToCurrency,
+	// 	r.Rate,
+	// )
 	return nil
 }
 func (a *DatabaseAdapter) FetchExchangeRate(fromCurrency, toCurrency string) (BankExchangeRateOrm, error) {
