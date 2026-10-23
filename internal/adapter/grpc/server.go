@@ -21,6 +21,7 @@ type GrpcAdapter struct {
 	hello.HelloServiceServer
 	bank.BankServiceServer
 	resiliency.ResilienceServiceServer
+	resiliency.ResilienceWithMetadataServiceServer
 }
 
 func NewGrpcAdapter(helloService port.HelloSerivcePort, bankService port.BankServicePort, resiliencySerivce port.ResiliencyServicePort, grpcPort int) *GrpcAdapter {
@@ -45,6 +46,7 @@ func (a *GrpcAdapter) Run() {
 	hello.RegisterHelloServiceServer(grpcServer, a)
 	bank.RegisterBankServiceServer(grpcServer, a)
 	resiliency.RegisterResilienceServiceServer(grpcServer, a)
+	resiliency.RegisterResilienceWithMetadataServiceServer(grpcServer, a)
 
 	if err = grpcServer.Serve(listen); err != nil {
 		log.Fatalf("Failed to serve grpc on port %d : %v\n", a.grpcPort, err)
